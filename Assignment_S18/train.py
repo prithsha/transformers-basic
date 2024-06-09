@@ -74,11 +74,11 @@ def run_validation(model, val_dataloader, tokenizer_src, tokenizer_tgt, max_len,
         console_width = 80
         
     with torch.no_grad():
-        print(f"val_dataloader length :{len(val_dataloader)}")
+        # print(f"val_dataloader length :{len(val_dataloader)}")
         for batch in val_dataloader:
             
             count += 1
-            print(f"validation batch :{len(batch)}, count: {count}")
+            # print(f"validation batch :{len(batch)}, count: {count}")
             encoder_input = batch["encoder_input"].to(device)
             encoder_mask = batch["encoder_mask"].to(device)
             
@@ -96,7 +96,7 @@ def run_validation(model, val_dataloader, tokenizer_src, tokenizer_tgt, max_len,
             print("SOURCE", source_text)
             print("TARGET", target_text)
             print("PREDICTED", model_out_text)
-            if(count > 4):
+            if(count == 2):
                 break
             
     if writer:
