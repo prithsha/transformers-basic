@@ -74,8 +74,11 @@ def run_validation(model, val_dataloader, tokenizer_src, tokenizer_tgt, max_len,
         console_width = 80
         
     with torch.no_grad():
+        print(f"val_dataloader length :{len(val_dataloader)}")
         for batch in val_dataloader:
+            
             count += 1
+            print(f"validation batch :{len(batch)}, count: {count}")
             encoder_input = batch["encoder_input"].to(device)
             encoder_mask = batch["encoder_mask"].to(device)
             
@@ -89,10 +92,12 @@ def run_validation(model, val_dataloader, tokenizer_src, tokenizer_tgt, max_len,
             source_texts.append(source_text)
             expected.append(target_text)
             predicted.append(model_out_text)
-    """        
+
             print("SOURCE", source_text)
             print("TARGET", target_text)
             print("PREDICTED", model_out_text)
+            if(count > 4):
+                break
             
     if writer:
         metric = torchmetrics.CharErrorRate()
@@ -109,8 +114,7 @@ def run_validation(model, val_dataloader, tokenizer_src, tokenizer_tgt, max_len,
         bleu = metric(predicted, expected)
         writer.add_scalar('validation BLEU', bleu, global_step)
         writer.flush()
-        
-     """   
+             
 
 def get_all_sentenses(ds, lang):
     for item in ds:
@@ -132,7 +136,11 @@ def get_or_build_tokenizer(config, ds, lang):
 
 def get_ds(config):
     
-    ds_raw = load_dataset('opus_books', f"{config['lang_src']}-{config['lang_tgt']}", split = 'train')  
+    ds_raw = load_dataset('opus_books', f"{config['lang_src']}-{config['lang_tgt']}", split = 'train')
+
+    # train_ds_size = int(0.1 * len(ds_raw))
+    # val_ds_size = len(ds_raw) - train_ds_size
+    # ds_raw, _ = random_split(ds_raw, [train_ds_size, val_ds_size])
     
     src_lang = config["lang_src"]
     tgt_lang = config["lang_tgt"]
@@ -160,10 +168,45 @@ def get_ds(config):
     print(f"Max length of the source sentence : {max_len_src}")
     print(f"Max length of the source target : {max_len_tgt}")
     
-    train_dataloader = DataLoader(train_ds, batch_size = config["batch_size"], shuffle = True)
+    train_dataloader = DataLoader(train_ds, batch_size = config["batch_size"], shuffle = True, collate_fn=collate_fn)
     val_dataloader = DataLoader(val_ds, batch_size = 1, shuffle = True)
     
+    print(f"train_dataloader length: {len(train_dataloader)}")
+    print(f"val_dataloader length: {len(val_dataloader)}")
     return train_dataloader, val_dataloader, tokenizer_src, tokenizer_tgt
+
+def collate_fn(batch):
+    encoder_input_max = max(x["encoder_str_length"] for x in batch)
+    decoder_input_max = max(x["decoder_str_length"] for x in batch)
+
+    encoder_inputs = []
+    decoder_inputs = []
+    encoder_mask = []
+    decoder_mask = []
+
+    label = []
+    src_text = []
+    tgt_text = []
+
+
+    for b in batch:
+        encoder_inputs.append(b["encoder_input"][:encoder_input_max])
+        decoder_inputs.append(b["decoder_input"][:decoder_input_max])
+        encoder_mask.append((b["encoder_mask"][0,0,:encoder_input_max]).unsqueeze(0).unsqueeze(0).unsqueeze(0).int())
+        decoder_mask.append((b["decoder_mask"][0, :decoder_input_max, :decoder_input_max]).unsqueeze(0).unsqueeze(0))
+        label.append(b["label"][:decoder_input_max])
+        src_text.append(b["src_text"])
+        tgt_text.append(b["tgt_text"])
+
+    return {
+            "encoder_input": torch.vstack(encoder_inputs),
+            "decoder_input" :  torch.vstack(decoder_inputs),
+            "encoder_mask" : torch.vstack(encoder_mask),
+            "decoder_mask" : torch.vstack(decoder_mask),
+            "label" : torch.vstack(label),
+            "src_text" : src_text,
+            "tgt_text" : tgt_text
+        }
 
 
 def get_model(config, src_vocab_size, tgt_vocab_size):

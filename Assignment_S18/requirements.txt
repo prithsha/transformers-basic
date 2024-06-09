@@ -5,3 +5,4 @@ torchtext==0.16.2
 torchdata==0.7.1
 datasets==2.14.7
 huggingface_hub==0.17.3
+lion-pytorch==0.1.4
