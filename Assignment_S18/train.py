@@ -224,7 +224,6 @@ def train_model(config, epochs_count, model, train_dataloader, val_dataloader, o
     lr = [0.0]
     for epoch in range(initial_epoch, epochs_count):
         torch.cuda.empty_cache()
-        print(epoch)
         model.train()
         batch_iterator = tqdm(train_dataloader, desc = f"Processing Epoch {epoch:02d}")
         
